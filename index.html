@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR พัดลมตั้งโต๊ะ</title>
+
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.7/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    #controls {
+      position: fixed;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999;
+      width: 90%;
+      max-width: 360px;
+      padding: 15px;
+      box-sizing: border-box;
+      border-radius: 18px;
+      background: rgba(20, 25, 35, 0.92);
+      color: white;
+      text-align: center;
+    }
+    #controls h3 { margin: 0 0 10px; }
+    #status {
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: #7CFFB2;
+    }
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+    }
+    button {
+      padding: 12px 0;
+      border: none;
+      border-radius: 10px;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #e5e7eb;
+      color: #111827;
+    }
+    button.active { background: #00d084; color: #052e20; }
+    #hint { margin-top: 10px; font-size: 12px; color: #d1d5db; }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <h3>🌀 พัดลมตั้งโต๊ะ AR</h3>
+    <div id="status">กำลังค้นหา Hiro Marker...</div>
+    <div class="buttons">
+      <button data-speed="0" class="active">0</button>
+      <button data-speed="1">1</button>
+      <button data-speed="2">2</button>
+      <button data-speed="3">3</button>
+      <button data-speed="4">4</button>
+      <button data-speed="5">5</button>
+    </div>
+    <div id="hint">0 = ปิด | 1–5 = ปรับความเร็ว</div>
+  </div>
+
+  <a-scene embedded vr-mode-ui="enabled: false"
+    renderer="antialias: true; alpha: true"
+    arjs="sourceType: webcam; debugUIEnabled: false;">
+    <a-marker preset="hiro" id="hiroMarker">
+      <a-entity id="fan" position="0 0 0">
+        <!-- ฐานพัดลม -->
+        <a-cylinder position="0 0.08 0" radius="0.34" height="0.12" color="#263746"></a-cylinder>
+        <!-- เสาตั้ง -->
+        <a-cylinder position="0 0.48 0" radius="0.055" height="0.72" color="#B8C5CE"></a-cylinder>
+        <!-- มอเตอร์ -->
+        <a-cylinder position="0 0.91 0" rotation="90 0 0" radius="0.15" height="0.18" color="#273746"></a-cylinder>
+        <!-- ตะแกรง -->
+        <a-torus position="0 0.91 0.13" radius="0.39" radius-tubular="0.025" color="#DCE6ED"></a-torus>
+        <a-torus position="0 0.91 0.11" radius="0.29" radius-tubular="0.012" color="#DCE6ED"></a-torus>
+        <!-- ใบพัด -->
+        <a-entity id="blades" position="0 0.91 0.17">
+          <a-entity id="bladeGroup">
+            <a-entity rotation="0 0 0">
+              <a-box position="0 0.17 0" width="0.13" height="0.34" depth="0.045" color="#00AEEF"></a-box>
+            </a-entity>
+            <a-entity rotation="0 0 120">
+              <a-box position="0 0.17 0" width="0.13" height="0.34" depth="0.045" color="#00AEEF"></a-box>
+            </a-entity>
+            <a-entity rotation="0 0 240">
+              <a-box position="0 0.17 0" width="0.13" height="0.34" depth="0.045" color="#00AEEF"></a-box>
+            </a-entity>
+          </a-entity>
+          <a-sphere radius="0.09" color="#F4F7FA"></a-sphere>
+        </a-entity>
+      </a-entity>
+    </a-marker>
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    const marker = document.getElementById("hiroMarker");
+    const bladeGroup = document.getElementById("bladeGroup");
+    const statusText = document.getElementById("status");
+    const buttons = document.querySelectorAll("[data-speed]");
+    let speed = 0;
+    let angle = 0;
+    let markerVisible = false;
+    let previousTime = 0;
+
+    marker.addEventListener("markerFound", () => {
+      markerVisible = true;
+      statusText.textContent = "พบ Hiro Marker แล้ว • ความเร็ว " + speed;
+    });
+
+    marker.addEventListener("markerLost", () => {
+      markerVisible = false;
+      statusText.textContent = "ไม่พบ Marker — กรุณาส่องกล้องไปที่ Hiro";
+    });
+
+    buttons.forEach(button => {
+      button.addEventListener("click", () => {
+        speed = Number(button.dataset.speed);
+        buttons.forEach(b => b.classList.remove("active"));
+        button.classList.add("active");
+
+        if (speed === 0) {
+          statusText.textContent = markerVisible
+            ? "พบ Marker แล้ว • พัดลมปิด"
+            : "พัดลมปิด • กำลังค้นหา Marker...";
+        } else {
+          statusText.textContent = markerVisible
+            ? "พบ Marker แล้ว • ความเร็ว " + speed
+            : "ตั้งความเร็ว " + speed + " • กำลังค้นหา Marker...";
+        }
+      });
+    });
+
+    function animate(time) {
+      if (!previousTime) previousTime = time;
+      const delta = Math.min((time - previousTime) / 1000, 0.05);
+      previousTime = time;
+
+      if (speed > 0) {
+        angle += speed * 240 * delta;
+        bladeGroup.setAttribute("rotation", `0 0 ${angle % 360}`);
+      }
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
